@@ -49,23 +49,31 @@
   <h1>📊 Dashboard Velocidad Internet</h1>
   <p style="text-align:center">Datos cargados dinámicamente desde Google Sheets</p>
 
-  <!-- Controles -->
-  <div id="controls">
-    <label>
-      Dispositivo:
-      <select id="deviceFilter"></select>
-    </label>
-    <label>
-      Registros:
-      <select id="limitFilter">
-        <option value="10">10</option>
-        <option value="20" selected>20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
-    </label>
-    <button onclick="loadAndRender()">🔄 Actualizar</button>
-  </div>
+<div id="controls">
+  <label>
+    Dispositivo:
+    <select id="deviceFilter"></select>
+  </label>
+  <label>
+    Desde:
+    <input type="datetime-local" id="sinceFilter">
+  </label>
+  <label>
+    Hasta:
+    <input type="datetime-local" id="untilFilter">
+  </label>
+  <label>
+    Registros:
+    <select id="limitFilter">
+      <option value="10">10</option>
+      <option value="20" selected>20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select>
+  </label>
+  <button onclick="loadAndRender()">🔄 Actualizar</button>
+</div>
+
 
   <!-- Gráficas -->
   <div id="charts">
@@ -77,16 +85,18 @@
   </div>
 
   <script>
-    const SHEET_URL = "https://script.google.com/macros/s/AKfycbw2oCmkQ1mAoGXXdFyrGoyjSit37BFGu1W5j28DgxcUrJeV1TpXyKml0z-jC2xzrSz93A/exec";
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbxfxPDgtvjpuAADsT1zdYZFsr5LH0OwQHp9jkkXdMT2_O2-finRgDOpPWN0aaZewbf7kQ/exec";
 
     let charts = {};
+async function fetchData(limit = 20, device = "", since = "", until = "") {
+  let url = `${SHEET_URL}?limit=${limit}`;
+  if (device && device !== "all") url += `&device=${encodeURIComponent(device)}`;
+  if (since) url += `&since=${encodeURIComponent(since)}`;
+  if (until) url += `&until=${encodeURIComponent(until)}`;
 
-    async function fetchData(limit = 20) {
-      const res = await fetch(`${SHEET_URL}?limit=${limit}`);
-      const json = await res.json();
-      console.log("Datos recibidos:", json);
-      return json;
-    }
+  const res = await fetch(url);
+  return res.json();
+}
 
     function buildChart(ctx, label, data, borderColor, backgroundColor) {
       return new Chart(ctx, {
@@ -119,50 +129,48 @@
       charts = {};
     }
 
-    async function loadAndRender() {
-      const device = document.getElementById("deviceFilter").value;
-      const limit = document.getElementById("limitFilter").value;
+   async function loadAndRender() {
+  const device = document.getElementById("deviceFilter").value;
+  const limit = document.getElementById("limitFilter").value;
+  const since = document.getElementById("sinceFilter").value;
+  const until = document.getElementById("untilFilter").value;
 
-      const raw = await fetchData(limit);
+  const raw = await fetchData(limit, device, since, until);
 
-      // Normalizamos
-      const parsed = raw.map(d => ({
-        timestamp: d.Timestamp,
-        device: d.Device,
-        download: parseFloat(d.Download_Mbps),
-        upload: parseFloat(d.Upload_Mbps),
-        ping: parseFloat(d.Ping_ms),
-      }));
+  const parsed = raw.map(d => ({
+    timestamp: d.Timestamp,
+    device: d.Device,
+    download: parseFloat(d.Download_Mbps),
+    upload: parseFloat(d.Upload_Mbps),
+    ping: parseFloat(d.Ping_ms),
+  }));
 
-      // Si hay filtro por dispositivo
-      const filtered = device === "all" ? parsed : parsed.filter(d => d.device === device);
+  destroyCharts();
 
-      destroyCharts();
+  charts.download = buildChart(
+    document.getElementById('downloadChart'),
+    'Download (Mbps)',
+    parsed.map(d => ({ timestamp: d.timestamp, value: d.download })),
+    'rgb(75, 192, 192)',
+    'rgba(75, 192, 192, 0.2)'
+  );
 
-      charts.download = buildChart(
-        document.getElementById('downloadChart'),
-        'Download (Mbps)',
-        filtered.map(d => ({ timestamp: d.timestamp, value: d.download })),
-        'rgb(75, 192, 192)',
-        'rgba(75, 192, 192, 0.2)'
-      );
+  charts.upload = buildChart(
+    document.getElementById('uploadChart'),
+    'Upload (Mbps)',
+    parsed.map(d => ({ timestamp: d.timestamp, value: d.upload })),
+    'rgb(255, 159, 64)',
+    'rgba(255, 159, 64, 0.2)'
+  );
 
-      charts.upload = buildChart(
-        document.getElementById('uploadChart'),
-        'Upload (Mbps)',
-        filtered.map(d => ({ timestamp: d.timestamp, value: d.upload })),
-        'rgb(255, 159, 64)',
-        'rgba(255, 159, 64, 0.2)'
-      );
-
-      charts.ping = buildChart(
-        document.getElementById('pingChart'),
-        'Ping (ms)',
-        filtered.map(d => ({ timestamp: d.timestamp, value: d.ping })),
-        'rgb(153, 102, 255)',
-        'rgba(153, 102, 255, 0.2)'
-      );
-    }
+  charts.ping = buildChart(
+    document.getElementById('pingChart'),
+    'Ping (ms)',
+    parsed.map(d => ({ timestamp: d.timestamp, value: d.ping })),
+    'rgb(153, 102, 255)',
+    'rgba(153, 102, 255, 0.2)'
+  );
+}
 
     async function init() {
       const raw = await fetchData(50); // cargamos 50 para rellenar filtros
