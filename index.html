@@ -110,7 +110,7 @@
 
     /* ====== BOTÓN TEMA ====== */
     #theme-toggle {
-      position: fixed;
+      position: absolute;
       top: 1rem;
       right: 1rem;
       padding: 0.5rem 0.75rem;
@@ -191,7 +191,7 @@
     let charts = {}, currentData = [], refreshInterval = null;
 
     // ====== FETCH DATOS ======
-    async function fetchData(limit = 20, devices = [], since = "", until = "") {
+    async function fetchData(limit = 50, devices = [], since = "", until = "") {
       let url = `${SHEET_URL}?limit=${limit === 'all' ? '' : limit}`;
       if (devices.length && !devices.includes('all')) url += `&device=${devices.join(',')}`;
       if (since) url += `&since=${since}`;
