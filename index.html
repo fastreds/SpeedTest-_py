@@ -143,8 +143,8 @@
     <label>Registros:
       <select id="limitFilter">
         <option value="10">10</option>
-        <option value="20" selected>20</option>
-        <option value="50">50</option>
+        <option value="20" >20</option>
+        <option value="50" selected >50</option>
         <option value="100">100</option>
         <option value="all">Todos</option>
       </select>
@@ -162,6 +162,18 @@
 
   <!-- Resumen -->
   <div id="summary"></div>
+
+  <!-- Última medición -->
+  <div id="latest-measurement" style="text-align: center; margin-top: 1rem;">
+    <h2>Última Medición</h2>
+    <div class="stat-card">
+      <h3>Dispositivo: <span id="latest-device">-</span></h3>
+      <p>Download: <span id="latest-download">-</span> Mbps</p>
+      <p>Upload: <span id="latest-upload">-</span> Mbps</p>
+      <p>Ping: <span id="latest-ping">-</span> ms</p>
+      <p>Timestamp: <span id="latest-timestamp">-</span></p>
+    </div>
+  </div>
 
   <!-- Gráficos -->
   <div id="charts">
@@ -240,6 +252,21 @@
         <td>${d.timestamp}</td><td>${d.device}</td><td>${d.download}</td><td>${d.upload}</td><td>${d.ping}</td></tr>`).join('');
     };
 
+    // ====== RENDER ÚLTIMA MEDICIÓN ======
+    function renderLatestMeasurement(data) {
+      if (!data.length) {
+        document.getElementById('latest-measurement').style.display = 'none';
+        return;
+      }
+      const latest = data[data.length - 1];
+      document.getElementById('latest-device').textContent = latest.device;
+      document.getElementById('latest-download').textContent = latest.download.toFixed(2);
+      document.getElementById('latest-upload').textContent = latest.upload.toFixed(2);
+      document.getElementById('latest-ping').textContent = latest.ping.toFixed(2);
+      document.getElementById('latest-timestamp').textContent = latest.timestamp.toLocaleString();
+      document.getElementById('latest-measurement').style.display = 'block';
+    }
+
     // ====== CARGAR Y RENDERIZAR ======
     async function loadAndRender(){
       const devices=[...document.getElementById("deviceFilter").selectedOptions].map(o=>o.value);
@@ -252,6 +279,7 @@
 
       renderSummary(calculateStats(currentData));
       renderTable(currentData);
+      renderLatestMeasurement(currentData);
 
       destroyCharts();
       charts.download=buildLineChart(downloadChart.getContext('2d'),'Download',currentData.map(d=>({timestamp:d.timestamp,value:d.download})), 'rgb(75,192,192)');
