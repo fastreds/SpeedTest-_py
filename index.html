@@ -134,7 +134,8 @@
             <option value="20">20</option>
             <option value="50" selected>50</option>
             <option value="100">100</option>
-            <option value="all">Todos</option>
+            <option value="200">200</option>
+            <option value="300">300</option>
           </select>
         </div>
         <div class="col-md-2">
@@ -176,8 +177,12 @@
         <table id="recordsTable" class="table table-bordered">
           <thead>
             <tr>
-              <th>Timestamp</th><th>Dispositivo</th>
-              <th>Download</th><th>Upload</th><th>Ping</th>
+              <th>#</th>
+              <th>Timestamp</th>
+              <th>Dispositivo</th>
+              <th>Download</th>
+              <th>Upload</th>
+              <th>Ping</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -202,10 +207,12 @@
 
     // ====== FETCH DATOS ======
     async function fetchData(limit = 50, devices = [], since = "", until = "") {
-      let url = `${SHEET_URL}?limit=${limit === 'all' ? '' : limit}`;
-      if (devices.length && !devices.includes('all')) url += `&device=${devices.join(',')}`;
-      if (since) url += `&since=${since}`;
-      if (until) url += `&until=${until}`;
+      let url = `${SHEET_URL}?`;
+      if (limit !== 'all') url += `limit=${limit}&`; // Solo agrega el parámetro limit si no es 'all'
+      if (devices.length && !devices.includes('all')) url += `device=${devices.join(',')}&`;
+      if (since) url += `since=${since}&`;
+      if (until) url += `until=${until}`;
+      url = url.slice(-1) === '&' ? url.slice(0, -1) : url; // Elimina el último '&' si existe
       const res = await fetch(url);
       return res.json();
     }
@@ -356,8 +363,24 @@
     // ====== TABLA ======
     const renderTable = data => {
       const sortedData = [...data].sort((a, b) => b.timestamp - a.timestamp);
-      document.querySelector('#recordsTable tbody').innerHTML = sortedData.map(d => `<tr>
-        <td>${d.timestamp.toLocaleString()}</td><td>${d.device}</td><td>${d.download.toFixed(2)}</td><td>${d.upload.toFixed(2)}</td><td>${d.ping.toFixed(2)}</td></tr>`).join('');
+      document.querySelector('#recordsTable thead tr').innerHTML = `
+        <th>#</th>
+        <th>Timestamp</th>
+        <th>Dispositivo</th>
+        <th>Download</th>
+        <th>Upload</th>
+        <th>Ping</th>
+      `;
+      document.querySelector('#recordsTable tbody').innerHTML = sortedData.map((d, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${d.timestamp.toLocaleString()}</td>
+          <td>${d.device}</td>
+          <td>${d.download.toFixed(2)}</td>
+          <td>${d.upload.toFixed(2)}</td>
+          <td>${d.ping.toFixed(2)}</td>
+        </tr>
+      `).join('');
     };
 
     // ====== RENDER ÚLTIMAS MEDICIONES ======
