@@ -1,509 +1,757 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📊 Dashboard Velocidad Internet</title>
-  <!-- Librerías -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    /* ====== ESTILO BASE ====== */
-    body {
-      font-family: Arial, sans-serif;
-      background: #1e1e1e;
-      color: #f0f0f0;
-      transition: background 0.3s, color 0.3s;
-      
-    }
-    body.light-mode {
-      background: #f9fafb;
-      color: #333;
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 Dashboard de Velocidad de Internet v3.4</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js y Adaptador de Fecha -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
 
-    /* ====== CONTROLES ====== */
-    #controls {
-      background: #2c2c2c;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      padding: 1.5rem;
-      
-    }
-    body.light-mode #controls {
-      background: #fff;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
+    <style>
+        /* Estilos personalizados para un look profesional */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* ====== TARJETAS DE ESTADÍSTICAS ====== */
-    .stat-card {
-      background: #2c2c2c;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      transition: transform 0.2s;
-       color: #f0f0f0;
-    }
-    body.light-mode .stat-card {
-      background: #fff;
-    }
-    .stat-card:hover {
-      transform: translateY(-5px);
-    }
+        /* Transiciones suaves para el cambio de tema */
+        .transition-colors {
+            transition-property: background-color, border-color, color;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 300ms;
+        }
+        
+        .chart-container {
+            position: relative;
+            min-height: 350px;
+            width: 100%;
+        }
 
-    /* ====== GRÁFICOS ====== */
-    .chart-container {
-      background: #2c2c2c;
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            color: #f0f0f0;
-    }
-    body.light-mode .chart-container {
-      background: #fff;
-    }
-    canvas {
-      width: 100% !important;
-      height: 300px !important;
-    }
+        .heatmap-cell {
+            transition: background-color 0.3s;
+        }
+        
+        .dark .chart-container, .dark .card {
+            background-color: #1f2937; /* gray-800 */
+            border-color: #374151; /* gray-700 */
+        }
 
-    /* ====== TABLA ====== */
-    table {
-      background: #2c2c2c;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    body.light-mode table {
-      background: #fff;
-    }
-    th {
-      background: #3a3a3a;
-    }
-    body.light-mode th {
-      background: #f0f0f0;
-    }
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
 
-    /* ====== BOTÓN TEMA ====== */
-    #theme-toggle {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-    }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
 
-    /* ====== RESPONSIVO ====== */
-    @media (max-width: 768px) {
-      canvas {
-        height: 250px !important;
-      }
-      .stat-card {
-        padding: 0.75rem;
-      }
-      #controls {
-        padding: 1rem;
-      }
-    }
-  </style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body class="dark-mode">
-  <div class="container my-4">
-    <h1 class="text-center mb-3">📊 Dashboard Velocidad Internet</h1>
-    <p class="text-center">Datos en vivo desde Google Sheets (últimas 12h por defecto).</p>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors">
 
-    <!-- Toggle Tema -->
-    <button id="theme-toggle" class="btn btn-outline-secondary" onclick="toggleTheme()">☀️ Claro</button>
+    <div id="loader" class="flex"><div class="spinner"></div></div>
 
-    <!-- Controles -->
-    <div id="controls" class="mb-4">
-      <div class="row g-3 align-items-center">
-        <div class="col-md-2">
-          <label for="deviceFilter" class="form-label">Dispositivo</label>
-          <select id="deviceFilter" class="form-select" multiple></select>
-        </div>
-        <div class="col-md-2">
-          <label for="sinceFilter" class="form-label">Desde</label>
-          <input type="datetime-local" id="sinceFilter" class="form-control">
-        </div>
-        <div class="col-md-2">
-          <label for="untilFilter" class="form-label">Hasta</label>
-          <input type="datetime-local" id="untilFilter" class="form-control">
-        </div>
-        <div class="col-md-2">
-          <label for="limitFilter" class="form-label">Registros</label>
-          <select id="limitFilter" class="form-select">
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50" selected>50</option>
-            <option value="100">100</option>
-            <option value="200">200</option>
-            <option value="300">300</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label for="autoRefresh" class="form-label">Auto-refresh</label>
-          <select id="autoRefresh" class="form-select">
-            <option value="0" selected>Off</option>
-            <option value="30000">30s</option>
-            <option value="60000">1min</option>
-          </select>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-          <button onclick="loadAndRender()" class="btn btn-primary me-2">🔄 Actualizar</button>
-          <button onclick="exportToCSV()" class="btn btn-success">📥 CSV</button>
-        </div>
-      </div>
-    </div>
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
 
-    <!-- Resumen -->
-    <div id="summary" class="row mb-4"></div>
-
-    <!-- Últimas mediciones -->
-    <div id="latest-measurements" class="text-center mb-4">
-      <h2>Últimas Mediciones</h2>
-      <div class="row" id="latest-measurements-container"></div>
-    </div>
-
-    <!-- Gráficos -->
-    <div id="charts" class="row">
-      <div class="col-12 mb-3 chart-container"><canvas id="downloadChart"></canvas></div>
-      <div class="col-12 mb-3 chart-container"><canvas id="uploadChart"></canvas></div>
-      <div class="col-12 mb-3 chart-container"><canvas id="pingChart"></canvas></div>
-      <div class="col-12 mb-3 chart-container"><canvas id="avgChart"></canvas></div>
-    </div>
-
-    <!-- Tabla -->
-    <div id="data-table" class="mt-4">
-      <h2>Registros</h2>
-      <div class="table-responsive">
-        <table id="recordsTable" class="table table-bordered">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Timestamp</th>
-              <th>Dispositivo</th>
-              <th>Download</th>
-              <th>Upload</th>
-              <th>Ping</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    /* URL de tu Apps Script */
-    const SHEET_URL = "https://script.google.com/macros/s/AKfycbxfxPDgtvjpuAADsT1zdYZFsr5LH0OwQHp9jkkXdMT2_O2-finRgDOpPWN0aaZewbf7kQ/exec";
-    let charts = {}, currentData = [], refreshInterval = null;
-    const colors = [
-      '#4BC0C0', // Cyan
-      '#FF9F40', // Orange
-      '#9966FF', // Purple
-      '#FF6384', // Pink
-      '#36A2EB'  // Blue
-    ];
-
-    // ====== FETCH DATOS ======
-    async function fetchData(limit = 50, devices = [], since = "", until = "") {
-      let url = `${SHEET_URL}?`;
-      if (limit !== 'all') url += `limit=${limit}&`; // Solo agrega el parámetro limit si no es 'all'
-      if (devices.length && !devices.includes('all')) url += `device=${devices.join(',')}&`;
-      if (since) url += `since=${since}&`;
-      if (until) url += `until=${until}`;
-      url = url.slice(-1) === '&' ? url.slice(0, -1) : url; // Elimina el último '&' si existe
-      const res = await fetch(url);
-      return res.json();
-    }
-
-    // ====== HELPERS ======
-    const formatDateTimeLocal = d =>
-      `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-
-    function destroyCharts(){ Object.values(charts).forEach(c=>c.destroy()); charts={}; }
-
-    // ====== RENDER CHARTS ======
-    const buildMultiLineChart = (ctx, grouped, key, colors, title) => new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: Object.keys(grouped).map((dev, i) => ({
-          label: dev,
-          data: grouped[dev].map(d => ({ x: d.timestamp, y: d[key] })),
-          borderColor: colors[i % colors.length],
-          backgroundColor: colors[i % colors.length] + '20', // Opacidad reducida
-          borderWidth: 3, // Líneas más gruesas
-          pointRadius: 4, // Puntos más visibles
-          pointHoverRadius: 6,
-          fill: true,
-          tension: 0.4
-        }))
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: title,
-            font: { size: 18, weight: 'bold' },
-            color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333'
-          },
-          legend: {
-            position: 'top',
-            labels: { font: { size: 12 }, color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' }
-          }
-        },
-        interaction: {
-          mode: 'index',
-          intersect: false
-        },
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'hour',
-              displayFormats: { hour: 'MMM d, HH:mm' }
-            },
-            grid: { color: document.body.classList.contains('dark-mode') ? '#444' : '#ddd' },
-            ticks: { color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' }
-          },
-          y: {
-            beginAtZero: true,
-            grid: { color: document.body.classList.contains('dark-mode') ? '#444' : '#ddd' },
-            ticks: { color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' }
-          }
-        },
-        hover: {
-          mode: 'nearest',
-          intersect: true
-        }
-      }
-    });
-
-    const buildBarChart = (ctx, labels, datasets) => new Chart(ctx, {
-      type: 'bar',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: {
-            display: true,
-            text: 'Comparación de Promedios por Dispositivo',
-            font: { size: 18, weight: 'bold' },
-            color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333'
-          },
-          legend: {
-            position: 'top',
-            labels: { font: { size: 12 }, color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' }
-          }
-        },
-        scales: {
-          x: { ticks: { color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' } },
-          y: { beginAtZero: true, ticks: { color: document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333' } }
-        }
-      }
-    });
-
-    // ====== RESUMEN ======
-    function calculateStats(data) {
-      let stats = { download: { min: Infinity, max: -Infinity, sum: 0 }, upload: { min: Infinity, max: -Infinity, sum: 0 }, ping: { min: Infinity, max: -Infinity, sum: 0 } };
-      data.forEach(d => { ['download', 'upload', 'ping'].forEach(k => {
-        stats[k].min = Math.min(stats[k].min, d[k]);
-        stats[k].max = Math.max(stats[k].max, d[k]);
-        stats[k].sum += d[k];
-      }); });
-      let n = data.length;
-      for (let k in stats) {
-        stats[k].avg = (stats[k].sum / n || 0).toFixed(2);
-        stats[k].min = isFinite(stats[k].min) ? stats[k].min.toFixed(2) : 0;
-        stats[k].max = isFinite(stats[k].max) ? stats[k].max.toFixed(2) : 0;
-      }
-      return stats;
-    }
-
-    function renderSummaries(grouped) {
-      const summaryDiv = document.getElementById('summary');
-      summaryDiv.innerHTML = '';
-      Object.keys(grouped).forEach(dev => {
-        const stats = calculateStats(grouped[dev]);
-        const devSection = document.createElement('div');
-        devSection.className = 'col-md-4 mb-3';
-        devSection.innerHTML = `
-          <div class="card stat-card">
-            <div class="card-body">
-              <h3 class="card-title">${dev}</h3>
-              <div class="row">
-                <div class="col-4">
-                  <h4>Download</h4>
-                  <p>Min: ${stats.download.min}</p>
-                  <p>Max: ${stats.download.max}</p>
-                  <p>Avg: ${stats.download.avg}</p>
-                </div>
-                <div class="col-4">
-                  <h4>Upload</h4>
-                  <p>Min: ${stats.upload.min}</p>
-                  <p>Max: ${stats.upload.max}</p>
-                  <p>Avg: ${stats.upload.avg}</p>
-                </div>
-                <div class="col-4">
-                  <h4>Ping</h4>
-                  <p>Min: ${stats.ping.min}</p>
-                  <p>Max: ${stats.ping.max}</p>
-                  <p>Avg: ${stats.ping.avg}</p>
-                </div>
-              </div>
+        <!-- Cabecera -->
+        <header class="flex flex-col md:flex-row justify-between items-start mb-6">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard de Rendimiento de Red</h1>
+                <p id="queried-dates-display" class="text-sm text-indigo-600 dark:text-indigo-400 font-medium"></p>
             </div>
-          </div>`;
-        summaryDiv.appendChild(devSection);
-      });
-    }
+            <div class="flex items-center space-x-2 mt-4 md:mt-0">
+                <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600" title="Cambiar tema">
+                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 10.607a1 1 0 011.414 0l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM3 11a1 1 0 100 2H2a1 1 0 100-2h1z"></path></svg>
+                </button>
+            </div>
+        </header>
 
-    // ====== TABLA ======
-    const renderTable = data => {
-      const sortedData = [...data].sort((a, b) => b.timestamp - a.timestamp);
-      document.querySelector('#recordsTable thead tr').innerHTML = `
-        <th>#</th>
-        <th>Timestamp</th>
-        <th>Dispositivo</th>
-        <th>Download</th>
-        <th>Upload</th>
-        <th>Ping</th>
-      `;
-      document.querySelector('#recordsTable tbody').innerHTML = sortedData.map((d, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${d.timestamp.toLocaleString()}</td>
-          <td>${d.device}</td>
-          <td>${d.download.toFixed(2)}</td>
-          <td>${d.upload.toFixed(2)}</td>
-          <td>${d.ping.toFixed(2)}</td>
-        </tr>
-      `).join('');
+        <!-- Filtros -->
+        <div class="card p-4 mb-6 rounded-lg shadow-md">
+             <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div class="md:col-span-1">
+                    <label for="dateRangeFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Rango de Fechas</label>
+                    <select id="dateRangeFilter" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white dark:bg-gray-700">
+                        <option value="12h">Últimas 12 horas</option>
+                        <option value="24h">Últimas 24 horas</option>
+                        <option value="7d" selected>Últimos 7 días</option>
+                        <option value="30d">Últimos 30 días</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+                <div id="customDateContainer" class="hidden md:col-span-2 lg:col-span-1 grid grid-cols-2 gap-4">
+                    <div>
+                         <label for="sinceFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Desde</label>
+                         <input type="datetime-local" id="sinceFilter" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700">
+                    </div>
+                    <div>
+                         <label for="untilFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Hasta</label>
+                         <input type="datetime-local" id="untilFilter" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700">
+                    </div>
+                </div>
+                 <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dispositivo(s)</label>
+                    <div class="mt-1 flex items-center space-x-2">
+                        <button id="selectAllDevices" type="button" class="text-xs text-indigo-600 hover:text-indigo-800">Todos</button>
+                        <button id="deselectAllDevices" type="button" class="text-xs text-indigo-600 hover:text-indigo-800">Ninguno</button>
+                    </div>
+                    <div id="deviceFilterContainer" class="mt-2 p-2 h-24 overflow-y-auto rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700">
+                    </div>
+                </div>
+                <div class="flex items-end">
+                     <button onclick="loadAndRender()" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                         Actualizar
+                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Última Medición -->
+        <div class="mb-6">
+            <div class="flex items-center space-x-2 mb-2">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Última Medición Registrada</h2>
+                <button class="toggle-info text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" data-target="info-latest-measurement" title="Más información">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </button>
+            </div>
+            <div id="info-latest-measurement" class="hidden bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4 text-sm text-gray-600 dark:text-gray-300">
+                 <p>Muestra una tarjeta con los resultados de la prueba de velocidad más reciente para cada dispositivo seleccionado, dentro del rango de fechas consultado.</p>
+            </div>
+            <div id="latest-measurement-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            </div>
+        </div>
+
+        <!-- Indicadores Clave (KPIs) -->
+        <div class="mb-6">
+            <div class="flex items-center space-x-2 mb-2">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Indicadores Clave de Rendimiento (KPIs)</h2>
+                 <button class="toggle-info text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" data-target="info-kpis" title="Más información">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </button>
+            </div>
+            <div id="info-kpis" class="hidden bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4 text-sm text-gray-600 dark:text-gray-300">
+                <p>Esta sección desglosa las métricas de rendimiento más importantes para cada dispositivo:</p>
+                <ul class="list-disc list-inside mt-2 space-y-2">
+                    <li><strong>Descarga Promedio:</strong> La velocidad media a la que se reciben datos de internet. Un número más alto es mejor.</li>
+                    <li><strong>Estabilidad (P5):</strong> Representa la velocidad del 5% de tus peores pruebas (Percentil 5). Es un indicador clave de la consistencia; una "Estabilidad" alta significa que tu conexión rara vez cae a velocidades muy bajas. Un número más alto es mejor.</li>
+                    <li><strong>Ping Promedio:</strong> El tiempo que tarda un paquete de datos en ir a un servidor y volver (latencia). Un número más bajo es mejor.</li>
+                    <li><strong>Jitter Promedio:</strong> La variación en el tiempo de llegada de los paquetes de datos (Ping). Un Jitter alto causa inestabilidad en videollamadas y juegos online. Un número más bajo es mejor.</li>
+                </ul>
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <h4 class="font-semibold">Semáforo de Tendencia:</h4>
+                    <p><span class="text-green-500 font-bold">▲ Verde:</span> Indica una mejora en el rendimiento en comparación con el período anterior.</p>
+                    <p><span class="text-red-500 font-bold">▼ Rojo:</span> Señala un empeoramiento del rendimiento en comparación con el período anterior.</p>
+                </div>
+            </div>
+            <div id="kpi-container-wrapper">
+            </div>
+        </div>
+
+
+        <!-- Visualizaciones Profundas (Agregadas) -->
+        <div class="mb-6">
+            <div class="flex items-center space-x-2 mb-2">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Análisis Agregado de Dispositivos</h2>
+                <button class="toggle-info text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" data-target="info-aggregate" title="Más información">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </button>
+            </div>
+             <div id="info-aggregate" class="hidden bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4 text-sm text-gray-600 dark:text-gray-300">
+                <p>Estas visualizaciones combinan los datos de todos los dispositivos seleccionados para ofrecer una perspectiva general de la red.</p>
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <h4 class="font-semibold">Mapa de Calor:</h4>
+                    <p>Cada celda representa la velocidad de descarga promedio para una hora específica de un día de la semana. Es ideal para identificar patrones de congestión (por ejemplo, si la red se vuelve lenta a ciertas horas).</p>
+                    <ul class="list-disc list-inside mt-2">
+                        <li><span class="font-bold text-blue-500">Azul Intenso:</span> Mayor velocidad (mejor rendimiento).</li>
+                        <li><span class="font-bold text-gray-400">Gris / Azul Claro:</span> Menor velocidad (peor rendimiento).</li>
+                    </ul>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <h4 class="font-semibold">Gráfico de Consistencia (Estabilidad):</h4>
+                    <p>Este gráfico muestra qué tan consistente es tu velocidad de descarga, en lugar de solo un promedio simple.</p>
+                    <ul class="list-disc list-inside mt-2">
+                        <li><strong class="text-red-500">Peor 5% (Rojo):</strong> La velocidad a la que o por debajo de la cual se encuentra el 5% de tus pruebas más lentas. Un valor bajo aquí indica caídas de velocidad frecuentes.</li>
+                        <li><strong class="text-blue-500">Promedio (Azul):</strong> La mediana de todas tus pruebas. El 50% de las pruebas están por encima de este valor y el 50% por debajo.</li>
+                        <li><strong class="text-green-500">Mejor 5% (Verde):</strong> La velocidad a la que o por encima de la cual se encuentra el 5% de tus pruebas más rápidas.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-3 card p-4 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold mb-2">Mapa de Calor (Descarga Promedio)</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Muestra las horas y días de mayor o menor velocidad.</p>
+                    <div id="heatmap-container" class="overflow-x-auto"></div>
+                </div>
+                <div class="lg:col-span-2 card p-4 rounded-lg shadow-md">
+                     <div class="chart-container">
+                        <canvas id="stabilityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gráficos Históricos -->
+        <div>
+            <div class="flex items-center space-x-2 mb-2">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Análisis Histórico Comparativo</h2>
+                <button class="toggle-info text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" data-target="info-historical" title="Más información">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </button>
+            </div>
+            <div id="info-historical" class="hidden bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4 text-sm text-gray-600 dark:text-gray-300">
+                <p>Estos gráficos muestran la evolución de las métricas clave a lo largo del período de tiempo seleccionado. Son útiles para visualizar tendencias, picos o caídas en el rendimiento.</p>
+                <ul class="list-disc list-inside mt-2">
+                    <li>Cada <strong>línea de color</strong> representa un dispositivo diferente, permitiendo una comparación directa de su comportamiento a lo largo del tiempo.</li>
+                    <li>El área sombreada debajo de la línea ayuda a visualizar más fácilmente la magnitud de los valores.</li>
+                </ul>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="card p-4 rounded-lg shadow-md">
+                    <div class="chart-container"><canvas id="downloadChart"></canvas></div>
+                </div>
+                <div class="card p-4 rounded-lg shadow-md">
+                    <div class="chart-container"><canvas id="pingChart"></canvas></div>
+                </div>
+                <div class="card p-4 rounded-lg shadow-md">
+                    <div class="chart-container"><canvas id="jitterChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registros Detallados -->
+         <div class="mt-6">
+            <div class="flex justify-between items-center mb-2">
+                 <div class="flex items-center space-x-2">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Registros Detallados</h2>
+                     <button class="toggle-info text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" data-target="info-records" title="Más información">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                </div>
+                <button id="toggle-records" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Ocultar Registros</button>
+            </div>
+             <div id="info-records" class="hidden bg-gray-50 dark:bg-gray-800 p-3 rounded-lg mb-4 text-sm text-gray-600 dark:text-gray-300">
+                 <p>La tabla completa con todos los datos consultados para el período y dispositivos seleccionados, ordenada del más reciente al más antiguo.</p>
+            </div>
+            <div id="records-table-container" class="overflow-x-auto card p-4 rounded-lg shadow-md">
+                <!-- La tabla se generará aquí si hay datos -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    // URL de tu Apps Script
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbxM1KUEn9LJ_BimYCl4Lbrkwc_W3ljf72sjs5TmnxoMJ_Ye9CHLRsUnGxWjlhMVK5V96w/exec";
+
+    // Estado global
+    let charts = {};
+    const loader = document.getElementById('loader');
+    const CHART_COLORS = ['rgb(59, 130, 246)', 'rgb(239, 68, 68)', 'rgb(34, 197, 94)', 'rgb(249, 115, 22)', 'rgb(168, 85, 247)', 'rgb(234, 179, 8)'];
+
+    // --- LÓGICA DE MANEJO DE TEMA Y UI ---
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIconDark = document.getElementById('theme-icon-dark');
+    const themeIconLight = document.getElementById('theme-icon-light');
+
+    const applyTheme = (isDark) => {
+        document.documentElement.classList.toggle('dark', isDark);
+        themeIconDark.classList.toggle('hidden', !isDark);
+        themeIconLight.classList.toggle('hidden', isDark);
+    };
+    
+    const preferredTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(preferredTheme === 'dark');
+
+    themeToggle.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.contains('dark');
+        localStorage.setItem('theme', !isDark ? 'dark' : 'light');
+        applyTheme(!isDark);
+        Object.values(charts).forEach(chart => updateChartTheme(chart));
+    });
+
+    const toggleRecordsButton = document.getElementById('toggle-records');
+    const recordsContainer = document.getElementById('records-table-container');
+    toggleRecordsButton.addEventListener('click', () => {
+        recordsContainer.classList.toggle('hidden');
+        const isHidden = recordsContainer.classList.contains('hidden');
+        toggleRecordsButton.textContent = isHidden ? 'Mostrar Registros' : 'Ocultar Registros';
+    });
+
+
+    const updateChartTheme = (chart) => {
+        if (!chart) return;
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const textColor = isDark ? '#e5e7eb' : '#374151';
+
+        chart.options.plugins.title.color = textColor;
+        chart.options.plugins.legend.labels.color = textColor;
+        
+        Object.keys(chart.options.scales).forEach(axis => {
+            if (chart.options.scales[axis]) {
+                chart.options.scales[axis].grid.color = gridColor;
+                chart.options.scales[axis].ticks.color = textColor;
+            }
+        });
+        chart.update();
     };
 
-    // ====== RENDER ÚLTIMAS MEDICIONES ======
-    function renderLatestMeasurements(grouped) {
-      const container = document.getElementById('latest-measurements-container');
-      container.innerHTML = '';
-      Object.keys(grouped).forEach(dev => {
-        const devData = [...grouped[dev]].sort((a, b) => b.timestamp - a.timestamp);
-        if (devData.length === 0) return;
-        const latest = devData[0];
-        const card = document.createElement('div');
-        card.className = 'col-md-4 mb-3';
-        card.innerHTML = `
-          <div class="card stat-card">
-            <div class="card-body">
-              <h3 class="card-title">Dispositivo: ${dev}</h3>
-              <p>Download: ${latest.download.toFixed(2)} Mbps</p>
-              <p>Upload: ${latest.upload.toFixed(2)} Mbps</p>
-              <p>Ping: ${latest.ping.toFixed(2)} ms</p>
-              <p>Timestamp: ${latest.timestamp.toLocaleString()}</p>
-            </div>
-          </div>`;
-        container.appendChild(card);
-      });
+    // --- LÓGICA DE MANEJO DE DATOS Y FECHAS ---
+    async function fetchData(since, until, devices = [], limit = 10000) {
+        if (!since || !until || new Date(since) >= new Date(until)) {
+            console.warn("Rango de fechas inválido.");
+            return [];
+        }
+        let url = `${SHEET_URL}?since=${since.toISOString()}&until=${until.toISOString()}&limit=${limit}`;
+        
+        if (devices.length > 0) {
+            url += `&devices=${encodeURIComponent(devices.join(','))}`;
+        }
+        
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Error en la petición: ${res.statusText}`);
+            const data = await res.json();
+            if(data.error) {
+                throw new Error(`Error del script: ${data.error}`);
+            }
+            return data;
+        } catch (error) {
+            console.error("Error al obtener los datos:", error);
+            alert("No se pudieron cargar los datos. Revisa la consola para más detalles.");
+            return [];
+        }
     }
 
-    // ====== CARGAR Y RENDERIZAR ======
-    async function loadAndRender() {
-      const devices = [...document.getElementById("deviceFilter").selectedOptions].map(o => o.value);
-      const limit = document.getElementById("limitFilter").value;
-      const since = document.getElementById("sinceFilter").value;
-      const until = document.getElementById("untilFilter").value;
+    function getPeriodDates(range) {
+        const now = new Date();
+        let currentEnd = new Date(now);
+        let currentStart = new Date(now);
 
-      const raw = await fetchData(limit, devices, since, until);
-      currentData = raw.map(d => ({ timestamp: new Date(d.Timestamp), device: d.Device, download: +d.Download_Mbps, upload: +d.Upload_Mbps, ping: +d.Ping_ms }));
+        switch (range) {
+            case '12h': currentStart.setHours(now.getHours() - 12); break;
+            case '24h': currentStart.setHours(now.getHours() - 24); break;
+            case '7d': currentStart.setDate(now.getDate() - 7); break;
+            case '30d': currentStart.setDate(now.getDate() - 30); break;
+            case 'custom':
+                 currentStart = new Date(document.getElementById('sinceFilter').value);
+                 currentEnd = new Date(document.getElementById('untilFilter').value);
+                 break;
+        }
 
-      const grouped = currentData.reduce((acc, d) => {
-        if (!acc[d.device]) acc[d.device] = [];
-        acc[d.device].push(d);
-        return acc;
-      }, {});
+        const duration = currentEnd.getTime() - currentStart.getTime();
+        const previousEnd = new Date(currentStart.getTime() - 1);
+        const previousStart = new Date(previousEnd.getTime() - duration);
+        
+        return { currentStart, currentEnd, previousStart, previousEnd };
+    }
 
-      renderSummaries(grouped);
-      renderTable(currentData);
-      renderLatestMeasurements(grouped);
+    // --- LÓGICA DE CÁLCULO ---
+    const calculatePercentile = (arr, p) => {
+        if (arr.length === 0) return 0;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const pos = (sorted.length - 1) * p;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        return sorted[base + 1] !== undefined ? sorted[base] + rest * (sorted[base + 1] - sorted[base]) : sorted[base];
+    };
+    
+    function calculateKPIs(data) {
+        if (data.length === 0) return { avgDownload: 0, p5Download: 0, avgPing: 0, avgJitter: 0 };
+        const downloads = data.map(d => d.download);
+        const pings = data.map(d => d.ping);
+        const jitters = data.map(d => d.jitter);
+        const sum = (arr) => arr.reduce((acc, val) => acc + val, 0);
+        return {
+            avgDownload: sum(downloads) / downloads.length,
+            p5Download: calculatePercentile(downloads, 0.05),
+            avgPing: sum(pings) / pings.length,
+            avgJitter: sum(jitters) / jitters.length,
+        };
+    }
 
-      destroyCharts();
-      charts.download = buildMultiLineChart(downloadChart.getContext('2d'), grouped, 'download', colors, 'Velocidad de Descarga (Mbps)');
-      charts.upload = buildMultiLineChart(uploadChart.getContext('2d'), grouped, 'upload', colors, 'Velocidad de Subida (Mbps)');
-      charts.ping = buildMultiLineChart(pingChart.getContext('2d'), grouped, 'ping', colors, 'Ping (ms)');
+    // --- LÓGICA DE RENDERIZADO ---
+    function destroyCharts() {
+        Object.values(charts).forEach(c => { if (c) c.destroy(); });
+        charts = {};
+    }
 
-      const devicesSet = Object.keys(grouped);
-      if (devicesSet.length > 1) {
-        const avgs = { download: [], upload: [], ping: [] };
-        devicesSet.forEach(dev => {
-          let f = grouped[dev], n = f.length;
-          avgs.download.push(f.reduce((s, d) => s + d.download, 0) / n);
-          avgs.upload.push(f.reduce((s, d) => s + d.upload, 0) / n);
-          avgs.ping.push(f.reduce((s, d) => s + d.ping, 0) / n);
+    function renderLatestMeasurements(groupedData) {
+        const container = document.getElementById('latest-measurement-container');
+        container.innerHTML = '';
+        const devices = Object.keys(groupedData);
+
+        if (devices.every(dev => groupedData[dev].length === 0)) {
+            container.innerHTML = '<p class="text-center text-gray-500 col-span-full">No hay mediciones recientes.</p>';
+            return;
+        }
+
+        devices.forEach(device => {
+            const deviceData = groupedData[device];
+            if (deviceData.length === 0) return;
+            const latest = [...deviceData].sort((a,b) => b.timestamp - a.timestamp)[0];
+            if (!latest) return;
+            
+            const card = `
+                <div class="card p-4 rounded-lg shadow-md">
+                    <h3 class="text-md font-semibold text-gray-900 dark:text-white">${device}</h3>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">${latest.timestamp.toLocaleString()}</p>
+                    <div class="mt-2 text-sm space-y-1">
+                        <p><span class="font-medium">Descarga:</span> ${latest.download.toFixed(2)} Mbps</p>
+                        <p><span class="font-medium">Ping:</span> ${latest.ping.toFixed(2)} ms</p>
+                        <p><span class="font-medium">Jitter:</span> ${latest.jitter.toFixed(2)} ms</p>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += card;
         });
-        charts.avg = buildBarChart(avgChart.getContext('2d'), devicesSet, [
-          { label: 'Download', data: avgs.download, backgroundColor: 'rgba(75,192,192,0.8)' },
-          { label: 'Upload', data: avgs.upload, backgroundColor: 'rgba(255,159,64,0.8)' },
-          { label: 'Ping', data: avgs.ping, backgroundColor: 'rgba(153,102,255,0.8)' }
+    }
+
+    function renderKPIs(currentGrouped, previousGrouped) {
+        const wrapper = document.getElementById('kpi-container-wrapper');
+        wrapper.innerHTML = '';
+        const devices = Object.keys(currentGrouped);
+
+        if (devices.every(dev => currentGrouped[dev].length === 0)) {
+            wrapper.innerHTML = '<p class="text-center text-gray-500 mb-6">No hay datos para los dispositivos seleccionados en este período.</p>';
+            return;
+        }
+
+        devices.forEach(device => {
+            const currentData = currentGrouped[device] || [];
+            if (currentData.length === 0) return;
+
+            const previousData = previousGrouped[device] || [];
+            const currentKPIs = calculateKPIs(currentData);
+            const previousKPIs = calculateKPIs(previousData);
+
+            const deviceKpiContainer = document.createElement('div');
+            deviceKpiContainer.className = 'mb-8';
+            deviceKpiContainer.innerHTML = `<h3 class="text-xl font-semibold mb-3 text-gray-900 dark:text-white">${device}</h3>`;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6';
+
+            const kpiMetrics = [
+                { id: 'avgDownload', name: 'Descarga Promedio', unit: 'Mbps', higherIsBetter: true },
+                { id: 'p5Download', name: 'Estabilidad (P5)', unit: 'Mbps', higherIsBetter: true },
+                { id: 'avgPing', name: 'Ping Promedio', unit: 'ms', higherIsBetter: false },
+                { id: 'avgJitter', name: 'Jitter Promedio', unit: 'ms', higherIsBetter: false },
+            ];
+
+            kpiMetrics.forEach(metric => {
+                const currentValue = currentKPIs[metric.id];
+                const previousValue = previousKPIs[metric.id];
+                const delta = previousValue !== 0 ? ((currentValue - previousValue) / previousValue) * 100 : 0;
+                
+                let deltaColor = 'text-gray-500';
+                let deltaIcon = '';
+                
+                if (delta.toFixed(1) != 0.0) {
+                    const isImprovement = metric.higherIsBetter ? delta > 0 : delta < 0;
+                    deltaColor = isImprovement ? 'text-green-500' : 'text-red-500';
+                    deltaIcon = isImprovement ? '▲' : '▼';
+                }
+
+                grid.innerHTML += `
+                    <div class="card p-4 rounded-lg shadow-md">
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">${metric.name}</h4>
+                        <div class="flex items-baseline justify-between mt-1">
+                            <p class="text-2xl font-semibold text-gray-900 dark:text-white">${currentValue.toFixed(2)} <span class="text-sm">${metric.unit}</span></p>
+                            <div class="flex items-center text-sm font-semibold ${deltaColor}">
+                                ${deltaIcon} ${Math.abs(delta).toFixed(1)}%
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${previousData.length > 0 ? `vs ${previousValue.toFixed(2)} ${metric.unit}` : 'sin datos previos'}</p>
+                    </div>
+                `;
+            });
+            deviceKpiContainer.appendChild(grid);
+            wrapper.appendChild(deviceKpiContainer);
+        });
+    }
+
+    function renderHeatmap(data) {
+        const container = document.getElementById('heatmap-container');
+        if (data.length === 0) {
+             container.innerHTML = '<p class="text-center text-gray-500">No hay datos para el mapa de calor.</p>';
+             return;
+        }
+        
+        const heatmapData = Array(7).fill(0).map(() => Array(24).fill({ sum: 0, count: 0 }));
+
+        data.forEach(d => {
+            const day = (d.timestamp.getDay() + 6) % 7;
+            const hour = d.timestamp.getHours();
+            heatmapData[day][hour].sum += d.download;
+            heatmapData[day][hour].count++;
+        });
+
+        const avgData = heatmapData.map(row => row.map(cell => cell.count > 0 ? cell.sum / cell.count : 0));
+        const maxAvg = Math.max(...avgData.flat());
+        
+        const getColor = (value) => {
+            if (value === 0) return 'bg-gray-200 dark:bg-gray-700';
+            const intensity = Math.min(1, value / (maxAvg * 0.9));
+            return `rgba(59, 130, 246, ${intensity})`;
+        };
+
+        const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+        let table = '<table class="w-full border-collapse text-center text-xs"><thead><tr><th></th>';
+        for(let i=0; i<24; i++) {
+            table += `<th class="p-1 font-normal text-gray-400">${i.toString().padStart(2,'0')}</th>`;
+        }
+        table += '</tr></thead><tbody>';
+
+        days.forEach((day, dayIndex) => {
+            table += `<tr><td class="p-1 font-semibold text-gray-500">${day}</td>`;
+            avgData[dayIndex].forEach(avg => {
+                table += `<td class="heatmap-cell rounded-sm" style="background-color: ${getColor(avg)}" title="${avg.toFixed(2)} Mbps"></td>`;
+            });
+            table += '</tr>';
+        });
+
+        table += '</tbody></table>';
+        container.innerHTML = table;
+    }
+
+     function renderRecordsTable(data) {
+        const container = document.getElementById('records-table-container');
+        if (data.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">No hay registros detallados para mostrar.</p>';
+            return;
+        }
+        const sortedData = [...data].sort((a,b) => b.timestamp - a.timestamp);
+        let table = '<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400"><thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr>';
+        const headers = ['Timestamp', 'Dispositivo', 'Descarga (Mbps)', 'Ping (ms)', 'Jitter (ms)'];
+        headers.forEach(h => table += `<th scope="col" class="px-6 py-3">${h}</th>`);
+        table += '</tr></thead><tbody>';
+
+        sortedData.forEach(d => {
+            table += `<tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                <td class="px-6 py-4">${d.timestamp.toLocaleString()}</td>
+                <td class="px-6 py-4">${d.device}</td>
+                <td class="px-6 py-4">${d.download.toFixed(2)}</td>
+                <td class="px-6 py-4">${d.ping.toFixed(2)}</td>
+                <td class="px-6 py-4">${d.jitter.toFixed(2)}</td>
+            </tr>`;
+        });
+        table += '</tbody></table>';
+        container.innerHTML = table;
+    }
+    
+    function createChart(ctx, config) {
+        const isDark = document.documentElement.classList.contains('dark');
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const textColor = isDark ? '#e5e7eb' : '#374151';
+
+        const defaultConfig = {
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, font: { size: 16 }, color: textColor },
+                    legend: { labels: { color: textColor } },
+                },
+                scales: {
+                    x: { grid: { color: gridColor }, ticks: { color: textColor, maxRotation: 0, autoSkip: true }, type: 'time', time: { unit: 'day' } },
+                    y: { grid: { color: gridColor }, ticks: { color: textColor }, beginAtZero: true }
+                },
+                interaction: { mode: 'index', intersect: false }
+            }
+        };
+        const finalConfig = { ...defaultConfig, ...config, options: { ...defaultConfig.options, ...config.options } };
+        return new Chart(ctx, finalConfig);
+    }
+    
+    function renderStabilityChart(data) {
+        const ctx = document.getElementById('stabilityChart').getContext('2d');
+        if (charts.stability) charts.stability.destroy();
+        if (data.length === 0) { 
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            return; 
+        }
+        const downloads = data.map(d => d.download);
+        const p5 = calculatePercentile(downloads, 0.05);
+        const p50 = calculatePercentile(downloads, 0.50);
+        const p95 = calculatePercentile(downloads, 0.95);
+
+        charts.stability = createChart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Peor 5% (Estabilidad)', 'Promedio (Mediana)', 'Mejor 5%'],
+                datasets: [{
+                    label: 'Velocidad de Descarga (Mbps)',
+                    data: [p5, p50, p95],
+                    backgroundColor: ['rgba(239, 68, 68, 0.6)','rgba(59, 130, 246, 0.6)','rgba(34, 197, 94, 0.6)'],
+                    borderColor: ['rgba(239, 68, 68, 1)','rgba(59, 130, 246, 1)','rgba(34, 197, 94, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                 plugins: { title: { text: 'Consistencia de Conexión' }, legend: { display: false } },
+                 scales: { x: { grid: { display: false } } }
+            }
+        });
+    }
+    
+    function renderHistoricalCharts(groupedData) {
+        const createMultiDeviceChart = (canvasId, title, dataKey) => {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const datasets = Object.keys(groupedData).map((device, index) => ({
+                label: device,
+                data: groupedData[device].map(d => ({ x: d.timestamp, y: d[dataKey] })),
+                borderColor: CHART_COLORS[index % CHART_COLORS.length],
+                backgroundColor: CHART_COLORS[index % CHART_COLORS.length].replace(')', ', 0.1)').replace('rgb', 'rgba'),
+                fill: true, tension: 0.3, pointRadius: 0
+            }));
+            return createChart(ctx, { type: 'line', data: { datasets }, options: { plugins: { title: { text: `${title}` } } } });
+        };
+        charts.download = createMultiDeviceChart('downloadChart', 'Histórico de Descarga (Mbps)', 'download');
+        charts.ping = createMultiDeviceChart('pingChart', 'Histórico de Ping (ms)', 'ping');
+        charts.jitter = createMultiDeviceChart('jitterChart', 'Histórico de Jitter (ms)', 'jitter');
+    }
+
+    // --- FUNCIÓN PRINCIPAL Y SETUP ---
+    async function loadAndRender() {
+        loader.style.display = 'flex';
+        destroyCharts();
+
+        const range = document.getElementById('dateRangeFilter').value;
+        const { currentStart, currentEnd, previousStart, previousEnd } = getPeriodDates(range);
+        
+        document.getElementById('queried-dates-display').textContent = 
+            `Mostrando datos desde ${currentStart.toLocaleString()} hasta ${currentEnd.toLocaleString()}`;
+
+        // Obtiene los dispositivos seleccionados ANTES de hacer la petición
+        const selectedDevices = [...document.querySelectorAll('#deviceFilterContainer input[type="checkbox"]:checked')].map(cb => cb.value);
+
+        const [rawCurrent, rawPrevious] = await Promise.all([
+            fetchData(currentStart, currentEnd, selectedDevices),
+            fetchData(previousStart, previousEnd, selectedDevices)
         ]);
-        avgChart.style.display = 'block';
-      } else {
-        avgChart.style.display = 'none';
-      }
+        
+        // El filtro de dispositivos se actualiza con los datos del período actual para mostrar cualquier nuevo dispositivo
+        updateDeviceFilters(rawCurrent.map(d => (d.Device || 'Desconocido').trim()));
+        
+        const parseData = (d) => ({
+            timestamp: new Date(d.Timestamp),
+            device: (d.Device || 'Desconocido').trim(),
+            download: +d.Download_Mbps,
+            ping: +d.Ping_ms,
+            jitter: +d.Jitter_ms || 0
+        });
+        
+        const allCurrentParsed = rawCurrent.map(parseData);
+        
+        // Función para agrupar los datos (ya no necesita filtrar)
+        const groupData = (parsedData) => {
+             return parsedData.reduce((acc, record) => {
+                const device = record.device;
+                if (!acc[device]) acc[device] = [];
+                acc[device].push(record);
+                return acc;
+            }, {});
+        };
+        
+        const groupedCurrent = groupData(allCurrentParsed);
+        const groupedPrevious = groupData(rawPrevious.map(parseData));
+
+        renderLatestMeasurements(groupedCurrent);
+        renderKPIs(groupedCurrent, groupedPrevious);
+        renderHeatmap(allCurrentParsed); // El mapa de calor y la estabilidad usan todos los datos seleccionados
+        renderStabilityChart(allCurrentParsed);
+        renderHistoricalCharts(groupedCurrent);
+        renderRecordsTable(allCurrentParsed);
+
+        loader.style.display = 'none';
+    }
+    
+    function updateDeviceFilters(allDevices) {
+        const deviceContainer = document.getElementById('deviceFilterContainer');
+        const uniqueDevices = [...new Set(allDevices)].filter(d => d);
+
+        const currentlySelected = new Set([...document.querySelectorAll('#deviceFilterContainer input:checked')].map(cb => cb.value));
+        const isFirstLoad = document.getElementById('deviceFilterContainer').innerHTML.trim() === '';
+
+        deviceContainer.innerHTML = '';
+        uniqueDevices.forEach(device => {
+            // En la primera carga, todos están seleccionados. Después, respeta la selección del usuario.
+            const isChecked = isFirstLoad || currentlySelected.has(device);
+            const div = document.createElement('div');
+            const deviceId = `device-${device.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            div.className = 'flex items-center';
+            div.innerHTML = `
+                <input id="${deviceId}" name="device" type="checkbox" value="${device}" ${isChecked ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <label for="${deviceId}" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">${device}</label>
+            `;
+            deviceContainer.appendChild(div);
+        });
     }
 
-    // ====== EXPORT CSV ======
-    function exportToCSV() {
-      if (!currentData.length) return alert('No hay datos');
-      const csv = [['Timestamp', 'Device', 'Download', 'Upload', 'Ping'], ...currentData.map(d => [d.timestamp, d.device, d.download, d.upload, d.ping])].map(r => r.join(',')).join('\n');
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-      link.download = 'internet_speed.csv';
-      link.click();
-    }
-
-    // ====== TEMA ======
-    function toggleTheme() {
-      const themeToggle = document.getElementById('theme-toggle');
-      document.body.classList.toggle('dark-mode');
-      document.body.classList.toggle('light-mode');
-      themeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️ Claro' : '🌙 Oscuro';
-      themeToggle.classList.toggle('btn-outline-secondary');
-      themeToggle.classList.toggle('btn-outline-dark');
-      // Actualizar colores de los gráficos al cambiar el tema
-      Object.values(charts).forEach(chart => {
-        chart.options.plugins.title.color = document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333';
-        chart.options.plugins.legend.labels.color = document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333';
-        chart.options.scales.x.grid.color = document.body.classList.contains('dark-mode') ? '#444' : '#ddd';
-        chart.options.scales.y.grid.color = document.body.classList.contains('dark-mode') ? '#444' : '#ddd';
-        chart.options.scales.x.ticks.color = document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333';
-        chart.options.scales.y.ticks.color = document.body.classList.contains('dark-mode') ? '#f0f0f0' : '#333';
-        chart.update();
-      });
-    }
-
-    // ====== AUTO REFRESH ======
-    function setupAutoRefresh() {
-      autoRefresh.addEventListener('change', () => {
-        if (refreshInterval) clearInterval(refreshInterval);
-        let ms = +autoRefresh.value;
-        if (ms > 0) refreshInterval = setInterval(loadAndRender, ms);
-      });
-    }
-
-    // ====== INIT ======
     async function init() {
-      let now = new Date(), past = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-      sinceFilter.value = formatDateTimeLocal(past);
-      untilFilter.value = formatDateTimeLocal(now);
+        loader.style.display = 'flex';
+        document.getElementById('dateRangeFilter').addEventListener('change', (e) => {
+            document.getElementById('customDateContainer').classList.toggle('hidden', e.target.value !== 'custom');
+        });
 
-      const raw = await fetchData(50);
-      const devices = [...new Set(raw.map(d => d.Device))];
-      deviceFilter.innerHTML = '<option value="all" selected>Todos</option>' + devices.map(d => `<option value="${d}">${d}</option>`).join('');
-      setupAutoRefresh();
-      loadAndRender();
+        // Lógica para los botones de información colapsables
+        document.addEventListener('click', function(e) {
+            const toggleButton = e.target.closest('.toggle-info');
+            if (toggleButton) {
+                const targetId = toggleButton.dataset.target;
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.classList.toggle('hidden');
+                }
+            }
+        });
+        
+        // Carga inicial para poblar los filtros por primera vez
+        const initialDates = getPeriodDates('7d');
+        // Pide TODOS los dispositivos en la carga inicial para poblar el filtro completamente
+        const rawInitialData = await fetchData(initialDates.currentStart, initialDates.currentEnd, []); 
+        updateDeviceFilters(rawInitialData.map(d => (d.Device || 'Desconocido').trim()));
+
+        // Ahora que los filtros están poblados, ejecuta la renderización completa
+        await loadAndRender();
+
+        document.getElementById('selectAllDevices').addEventListener('click', () => {
+            document.querySelectorAll('#deviceFilterContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+        });
+        document.getElementById('deselectAllDevices').addEventListener('click', () => {
+            document.querySelectorAll('#deviceFilterContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+        });
+        loader.style.display = 'none';
     }
-    init();
-  </script>
+
+    window.onload = init;
+
+    </script>
 </body>
 </html>
+
